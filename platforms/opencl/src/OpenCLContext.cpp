@@ -223,7 +223,7 @@ OpenCLContext::OpenCLContext(const System& system, int platformIndex, int device
             // 768 threads per GPU core.
             numThreadBlocksPerComputeUnit = 12;
         }
-        else if (vendor.size() >= 5 && vendor.substr(0, 5) == "INTEL) {
+        else if (vendor.size() >= 5 && vendor.substr(0, 5) == "Intel") {
             simdWidth = 32;
 
             // 8 threads per XC & SIMD 16 -> 2 threads per XC & SIMD 32
