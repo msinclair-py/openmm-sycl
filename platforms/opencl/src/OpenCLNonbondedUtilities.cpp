@@ -60,10 +60,15 @@ OpenCLNonbondedUtilities::OpenCLNonbondedUtilities(OpenCLContext& context) : con
     }
     else if (context.getSIMDWidth() == 32) {
         int blocksPerComputeUnit = 4;
+        forceThreadBlockSize = 256;
         std::string vendor = context.getDevice().getInfo<CL_DEVICE_VENDOR>();
         if (vendor.size() >= 5 && vendor.substr(0, 5) == "Apple") {
             // 1536 threads per GPU core.
             blocksPerComputeUnit = 6;
+        }
+        else if (vendor.size() >= 5 && vendor.substr(0, 5) == "Intel") {
+            blocksPerComputeUnit = 2;
+            forceThreadBlockSize = 128;
         }
         numForceThreadBlocks = blocksPerComputeUnit*context.getDevice().getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
         forceThreadBlockSize = 256;
