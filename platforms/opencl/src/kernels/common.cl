@@ -25,6 +25,7 @@ __attribute__((overloadable)) unsigned long atom_add(volatile __global unsigned 
 }
 #endif
 
+#define VOLATILE volatile
 #define KERNEL __kernel
 #define DEVICE
 #define LOCAL __local
