@@ -37,7 +37,7 @@ KERNEL void gridSpreadCharge(GLOBAL const real4* RESTRICT posq,
     // Process the atoms in spatially sorted order.  This improves efficiency when writing
     // the grid values.  PME_ORDER threads process one atom.
 
-    real3 data[PME_ORDER];
+    VOLATILE real3 data[PME_ORDER];
     const real scale = RECIP((real) (PME_ORDER-1));
     for (int i = GLOBAL_ID; i < NUM_ATOMS*PME_ORDER; i += GLOBAL_SIZE) {
         int atom = pmeAtomGridIndex[i/PME_ORDER].x;
