@@ -7,7 +7,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2025 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -54,9 +54,12 @@
 #include "openmm/HarmonicAngleForce.h"
 #include "openmm/HarmonicBondForce.h"
 #include "openmm/KernelImpl.h"
+#include "openmm/LCPOForce.h"
+#include "openmm/LocalEnergyMinimizer.h"
 #include "openmm/MonteCarloBarostat.h"
 #include "openmm/OrientationRestraintForce.h"
 #include "openmm/PeriodicTorsionForce.h"
+#include "openmm/PythonForce.h"
 #include "openmm/QTBIntegrator.h"
 #include "openmm/RBTorsionForce.h"
 #include "openmm/RGForce.h"
@@ -167,9 +170,12 @@ public:
     /**
      * Get the positions of all particles.
      *
+     * @param context    the context in which to execute this kernel
      * @param positions  on exit, this contains the particle positions
+     * @param allowPeriodic  if true, the returned positions might be translated into a
+     *                       different periodic box to keep them closer to the origin
      */
-    virtual void getPositions(ContextImpl& context, std::vector<Vec3>& positions) = 0;
+    virtual void getPositions(ContextImpl& context, std::vector<Vec3>& positions, bool allowPeriodic=false) = 0;
     /**
      * Set the positions of all particles.
      *
@@ -293,6 +299,33 @@ public:
      * @param context    the context in which to execute this kernel
      */
     virtual void computePositions(ContextImpl& context) = 0;
+};
+
+/**
+ * This kernel performs local energy minimization.
+ */
+class MinimizeKernel : public KernelImpl {
+public:
+    static std::string Name() {
+        return "Minimize";
+    }
+    MinimizeKernel(std::string name, const Platform& platform) : KernelImpl(name, platform) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param system     the System this kernel will be applied to
+     */
+    virtual void initialize(const System& system) = 0;
+    /**
+     * Perform local energy minimization.
+     * 
+     * @param context        the context with which to perform the minimization
+     * @param tolerance      limiting root-mean-square value of all force components in kJ/mol/nm for convergence
+     * @param maxIterations  the maximum number of iterations to perform, or 0 to continue until convergence
+     * @param reporter       an optional reporter to invoke after each iteration of minimization
+     */
+    virtual void execute(ContextImpl& context, double tolerance, int maxIterations, MinimizationReporter* reporter) = 0;
 };
 
 /**
@@ -1049,6 +1082,41 @@ public:
      * @param force      the GayBerneForce to copy the parameters from
      */
     virtual void copyParametersToContext(ContextImpl& context, const GayBerneForce& force) = 0;
+};
+
+/**
+ * This kernel is invoked by LCPOForce to calculate the forces acting on the system and the energy of the system.
+ */
+class CalcLCPOForceKernel : public KernelImpl {
+public:
+    static std::string Name() {
+        return "CalcLCPOForce";
+    }
+    CalcLCPOForceKernel(std::string name, const Platform& platform) : KernelImpl(name, platform) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param system     the System this kernel will be applied to
+     * @param force      the LCPOForce this kernel will be used for
+     */
+    virtual void initialize(const System& system, const LCPOForce& force) = 0;
+    /**
+     * Execute the kernel to calculate the forces and/or energy.
+     *
+     * @param context        the context in which to execute this kernel
+     * @param includeForces  true if forces should be calculated
+     * @param includeEnergy  true if the energy should be calculated
+     * @return the potential energy due to the force
+     */
+    virtual double execute(ContextImpl& context, bool includeForces, bool includeEnergy) = 0;
+    /**
+     * Copy changed parameters over to a context.
+     *
+     * @param context        the context to copy parameters to
+     * @param force          the LCPOForce to copy the parameters from
+     */
+    virtual void copyParametersToContext(ContextImpl& context, const LCPOForce& force) = 0;
 };
 
 /**
@@ -1926,10 +1994,38 @@ public:
     /**
      * Initialize the kernel.
      *
-     * @param system     the System this kernel will be applied to
+     * @param context    the ContextImpl this kernel will be applied to
      * @param force      the CustomCPPForceImpl this kernel will be used for
      */
-    virtual void initialize(const System& system, CustomCPPForceImpl& force) = 0;
+    virtual void initialize(const ContextImpl& context, CustomCPPForceImpl& force) = 0;
+    /**
+     * Execute the kernel to calculate the forces and/or energy.
+     *
+     * @param context        the context in which to execute this kernel
+     * @param includeForces  true if forces should be calculated
+     * @param includeEnergy  true if the energy should be calculated
+     * @return the potential energy due to the force
+     */
+    virtual double execute(ContextImpl& context, bool includeForces, bool includeEnergy) = 0;
+};
+
+/**
+ * This kernel is invoked by PythonForce to calculate the forces acting on the system and the energy of the system.
+ */
+class CalcPythonForceKernel : public KernelImpl {
+public:
+    static std::string Name() {
+        return "CalcPythonForce";
+    }
+    CalcPythonForceKernel(std::string name, const Platform& platform) : KernelImpl(name, platform) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param context    the ContextImpl this kernel will be applied to
+     * @param force      the PythonForce this kernel will be used for
+     */
+    virtual void initialize(const ContextImpl& context, const PythonForce& force) = 0;
     /**
      * Execute the kernel to calculate the forces and/or energy.
      *

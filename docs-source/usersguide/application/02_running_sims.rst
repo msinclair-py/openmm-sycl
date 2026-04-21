@@ -420,10 +420,15 @@ script, and can even run it for you.
 
    :autonumber:`Figure,openmm setup`:  The OpenMM-Setup application
 
-To install OpenMM-Setup, open a command line terminal and type the following command
+You can install OpenMM-Setup using the conda package manager with the command
 ::
 
     conda install -c conda-forge openmm-setup
+
+or using the pip package manager with the command
+::
+
+    pip install openmm-setup
 
 You can then launch it by typing the command
 ::
@@ -517,8 +522,7 @@ proteins, DNA, RNA, water, and ions.
 ===================================  ===========================================
 File                                 Parameters
 ===================================  ===========================================
-:file:`amber19/protein.ff19SB.xml`   Protein\ :cite:`Tian2020` (recommended, includes residue-specific CMAP terms)
-:file:`amber19/protein.ff19ipq.xml`  Protein (alternative)
+:file:`amber19/protein.ff19SB.xml`   Protein\ :cite:`Tian2020`
 :file:`amber19/DNA.OL21.xml`         DNA\ :cite:`Zgarbova2021`
 :file:`amber14/RNA.OL3.xml`          RNA
 :file:`amber19/lipid21.xml`          Lipid
@@ -739,6 +743,19 @@ The screening parameter can be calculated as
 
 where :math:`I` is the ionic strength in moles/liter, :math:`\epsilon` is the solvent
 dielectric constant, and :math:`T` is the temperature in Kelvin.
+
+When one of these implicit solvent force field files is included, you can
+specify the :code:`sasaMethod` parameter to select a method for calculating the
+solvent-accessible surface area (SASA), e.g.:
+::
+
+    system = forcefield.createSystem(sasaMethod='LCPO')
+
+Supported options are :code:`'ACE'` for the ACE approximation
+:cite:`Schaefer1998`\ :cite:`Ponder` (which is also the default if
+:code:`sasaMethod` is not given), :code:`'LCPO'` for the LCPO approximation
+:cite:`Weiser1999`, and :code:`None` to disable calculation of the surface area
+term entirely.
 
 AMOEBA
 ------
@@ -983,6 +1000,16 @@ Debye-Huckel screening parameter\ :cite:`Srinivasan1999`:
 
     system = prmtop.createSystem(implicitSolvent=OBC2, implicitSolventKappa=1.0/nanometer)
 
+By default, OpenMM uses the ACE approximation :cite:`Schaefer1998`\ :cite:`Ponder`
+to the solvent-accessible surface area, but you can also use the LCPO
+approximation :cite:`Weiser1999`:
+::
+
+    system = prmtop.createSystem(implicitSolvent=OBC2, sasaMethod='LCPO')
+
+This will be slower but more accurate than ACE.  Specifying :code:`None` for the
+:code:`sasaMethod` parameter will disable calculation of the surface area term
+entirely.
 
 Nonbonded Interactions
 ======================

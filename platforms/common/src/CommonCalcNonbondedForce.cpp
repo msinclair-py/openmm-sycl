@@ -909,7 +909,7 @@ double CommonCalcNonbondedForceKernel::execute(ContextImpl& context, bool includ
             // The Ewald self energy was computed in the kernel.
 
             energy = 0.0;
-            if (pmeGrid1.isInitialized() || cosSinSums.isInitialized()) {
+            if ((pmeGrid1.isInitialized() || cosSinSums.isInitialized()) && includeReciprocal) {
                 // Invoke a kernel to compute the correction for the neutralizing plasma.
 
                 Vec3 a, b, c;
@@ -1188,7 +1188,7 @@ void CommonCalcNonbondedForceKernel::copyParametersToContext(ContextImpl& contex
 
     // Record the exceptions.
 
-    if (firstException <= lastException) {
+    if (firstException <= lastException && numExceptions > 0) {
         vector<mm_float4> baseExceptionParamsVec(numExceptions);
         for (int i = 0; i < numExceptions; i++) {
             int particle1, particle2;

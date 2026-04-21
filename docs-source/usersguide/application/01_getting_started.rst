@@ -73,12 +73,9 @@ version with the command
     conda install -c conda-forge openmm cuda-version=12
 
 where :code:`12` should be replaced with the particular CUDA version
-you want to target.  We build packages for CUDA 11 and above.  Because different
+you want to target.  We build packages for CUDA 12 and above.  Because different
 CUDA releases are not binary compatible with each other, OpenMM can only work
 with the particular CUDA version it was compiled with.
-
-The conda package does not include the HIP platform.  If you have a recent AMD
-GPU, we recommend installing with pip instead.
 
 3.b. To install with pip, open a command line terminal and type the following command
 ::
@@ -93,8 +90,8 @@ GPU), type
     pip install openmm[cuda12]
 
 This will install a copy of the CUDA platform compiled with CUDA 12.  :code:`cuda13`
-is also available.  Alternatively, if you have an AMD GPU, use this command to
-include the HIP platform (compiled with HIP version 6)
+is also available.  Alternatively, if you have an AMD GPU, specify :code:`hip6`
+or :code:`hip7` to install the HIP platform (compiled with HIP version 6 or 7):
 ::
 
     pip install openmm[hip6]

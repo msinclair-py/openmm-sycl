@@ -369,6 +369,64 @@ class TestAPIUnits(unittest.TestCase):
         self.assertIs(charge1.unit, elementary_charge)
         self.assertIs(charge2.unit, elementary_charge)
 
+    def testLCPOForce(self):
+        """ Tests the LCPOForce API features """
+        force = LCPOForce()
+
+        force.setSurfaceTension(10.0*kilocalorie_per_mole/bohr**2)
+        surfaceTension = force.getSurfaceTension()
+        self.assertAlmostEqualUnit(surfaceTension, 10.0*kilocalorie_per_mole/bohr**2)
+        self.assertIs(surfaceTension.unit, kilojoule_per_mole/nanometer**2)
+
+        force.setSurfaceTension(10.0)
+        surfaceTension = force.getSurfaceTension()
+        self.assertAlmostEqualUnit(surfaceTension, 10.0*kilojoule_per_mole/nanometer**2)
+
+        force.addParticle(1.0, 2.0, 3.0, 4.0, 5.0)
+        force.addParticle(6.0*bohr, 7.0, 8.0, 9.0, 10.0/bohr**2)
+        self.assertEqual(force.getNumParticles(), 2)
+
+        radius, p1, p2, p3, p4 = force.getParticleParameters(0)
+        self.assertAlmostEqualUnit(radius, 1.0*nanometer)
+        self.assertEqual(p1, 2.0)
+        self.assertEqual(p2, 3.0)
+        self.assertEqual(p3, 4.0)
+        self.assertAlmostEqualUnit(p4, 5.0/nanometer**2)
+        self.assertIs(radius.unit, nanometer)
+        self.assertIs(p4.unit, nanometer**-2)
+
+        radius, p1, p2, p3, p4 = force.getParticleParameters(1)
+        self.assertAlmostEqualUnit(radius, 6.0*bohr)
+        self.assertEqual(p1, 7.0)
+        self.assertEqual(p2, 8.0)
+        self.assertEqual(p3, 9.0)
+        self.assertAlmostEqualUnit(p4, 10.0/bohr**2)
+        self.assertIs(radius.unit, nanometer)
+        self.assertIs(p4.unit, nanometer**-2)
+
+        force.setParticleParameters(0, 11.0, 12.0, 13.0, 14.0, 15.0)
+        force.setParticleParameters(1, 16.0*bohr, 17.0, 18.0, 19.0, 20.0/bohr**2)
+
+        radius, p1, p2, p3, p4 = force.getParticleParameters(0)
+        self.assertAlmostEqualUnit(radius, 11.0*nanometer)
+        self.assertEqual(p1, 12.0)
+        self.assertEqual(p2, 13.0)
+        self.assertEqual(p3, 14.0)
+        self.assertAlmostEqualUnit(p4, 15.0/nanometer**2)
+
+        radius, p1, p2, p3, p4 = force.getParticleParameters(1)
+        self.assertAlmostEqualUnit(radius, 16.0*bohr)
+        self.assertEqual(p1, 17.0)
+        self.assertEqual(p2, 18.0)
+        self.assertEqual(p3, 19.0)
+        self.assertAlmostEqualUnit(p4, 20.0/bohr**2)
+
+        self.assertFalse(force.usesPeriodicBoundaryConditions())
+        force.setUsesPeriodicBoundaryConditions(True)
+        self.assertTrue(force.usesPeriodicBoundaryConditions())
+        force.setUsesPeriodicBoundaryConditions(False)
+        self.assertFalse(force.usesPeriodicBoundaryConditions())
+
     def testCmapForce(self):
         """ Tests the CMAPTorsionForce API features """
         map1 = [random.random() for i in range(24*24)]
@@ -1200,7 +1258,7 @@ class TestAPIUnits(unittest.TestCase):
         integrator.setRelativeCollisionFrequency(0.1/picosecond)
         self.assertEqual(integrator.getRelativeCollisionFrequency(), 0.1/picosecond)
 
-        # Test bare consructor and addThermostat
+        # Test bare constructor and addThermostat
         integrator = NoseHooverIntegrator(1*femtosecond)
         self.assertEqual(integrator.getStepSize(), 1*femtosecond)
 
@@ -1242,8 +1300,31 @@ class TestAPIUnits(unittest.TestCase):
         self.assertEqual(force.getDefaultTemperature(), 298.15*kelvin)
         self.assertAlmostEqualUnit(force.getDefaultCollisionFrequency(), 1/picosecond)
 
-    def testMonteCarloMembraneBarostat(self):
-        """ Tests the MonteCarloMembraneBarostat API features """
+    def testMonteCarloBarostat(self):
+        """ Tests the various Monte Carlo barostats API features """
+        def checkPressureUnits(force):
+            system = System()
+            system.addParticle(0.0)
+            system.addForce(force)
+            bonds = HarmonicBondForce()
+            bonds.setUsesPeriodicBoundaryConditions(True)
+            system.addForce(bonds)
+            context = Context(system, VerletIntegrator(0.001))
+            context.setPositions([Vec3(0, 0, 0)])
+            pressure = force.computeCurrentPressure(context)
+            self.assertTrue(is_quantity(pressure))
+            self.assertTrue(pressure.unit == bar)
+
+        force = MonteCarloBarostat(1.1*bar, 350*kelvin)
+        self.assertEqual(force.getDefaultPressure(), 1.1*bar)
+        self.assertEqual(force.getDefaultTemperature(), 350*kelvin)
+        checkPressureUnits(force)
+
+        force = MonteCarloFlexibleBarostat(1.1*bar, 350*kelvin)
+        self.assertEqual(force.getDefaultPressure(), 1.1*bar)
+        self.assertEqual(force.getDefaultTemperature(), 350*kelvin)
+        checkPressureUnits(force)
+
         force = MonteCarloMembraneBarostat(1.0, 1.5, 300, MonteCarloMembraneBarostat.XYAnisotropic, MonteCarloMembraneBarostat.ZFixed, 25)
         self.assertEqual(force.getDefaultPressure(), 1.0*bar)
         self.assertEqual(force.getDefaultSurfaceTension(), 1.5*bar*nanometer)
@@ -1251,6 +1332,7 @@ class TestAPIUnits(unittest.TestCase):
         self.assertEqual(force.getXYMode(), MonteCarloMembraneBarostat.XYAnisotropic)
         self.assertEqual(force.getZMode(), MonteCarloMembraneBarostat.ZFixed)
         self.assertEqual(force.getFrequency(), 25)
+        checkPressureUnits(force)
 
         force = MonteCarloMembraneBarostat(1.1*bar, 2.0*bar*nanometer, 350*kelvin, MonteCarloMembraneBarostat.XYAnisotropic, MonteCarloMembraneBarostat.ZFixed, 25)
         self.assertEqual(force.getDefaultPressure(), 1.1*bar)
@@ -1263,6 +1345,11 @@ class TestAPIUnits(unittest.TestCase):
         self.assertEqual(force.getDefaultPressure(), 1.2*bar)
         self.assertEqual(force.getDefaultSurfaceTension(), 2.5*bar*nanometer)
         self.assertEqual(force.getDefaultTemperature(), 298.15*kelvin)
+
+        force = MonteCarloAnisotropicBarostat(Vec3(1.1, 2.2, 3.3)*bar, 350*kelvin)
+        self.assertEqual(force.getDefaultPressure(), Vec3(1.1, 2.2, 3.3)*bar)
+        self.assertEqual(force.getDefaultTemperature(), 350*kelvin)
+        checkPressureUnits(force)
 
     def testDrudeSCFIntegrator(self):
         """ Tests the DrudeSCFIntegrator API features """

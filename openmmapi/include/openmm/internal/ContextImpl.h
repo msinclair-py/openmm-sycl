@@ -7,7 +7,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2022 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -31,6 +31,7 @@
  * -------------------------------------------------------------------------- */
 
 #include "openmm/Kernel.h"
+#include "openmm/LocalEnergyMinimizer.h"
 #include "openmm/Platform.h"
 #include "openmm/Vec3.h"
 #include <iosfwd>
@@ -102,8 +103,10 @@ public:
      * Get the positions of all particles.
      *
      * @param positions  on exit, this contains the particle positions
+     * @param allowPeriodic  if true, the returned positions might be translated into a
+     *                       different periodic box to keep them closer to the origin
      */
-    void getPositions(std::vector<Vec3>& positions);
+    void getPositions(std::vector<Vec3>& positions, bool allowPeriodic=false);
     /**
      * Set the positions of all particles.
      *
@@ -293,6 +296,15 @@ public:
      * means you shouldn't.
      */
     Context* createLinkedContext(const System& system, Integrator& integrator);
+    /**
+     * Run local energy minimization on the Context.  See LocalEnergyMinimizer
+     * for details of the parameters.
+     * 
+     * @param tolerance      how precisely the energy minimum must be located
+     * @param maxIterations  the maximum number of iterations to perform
+     * @param reporter       an optional MinimizationReporter to invoke after each iteration
+     */
+    void minimize(double tolerance, int maxIterations, MinimizationReporter* reporter);
 private:
     friend class Context;
     void initialize();
@@ -302,10 +314,10 @@ private:
     std::vector<ForceImpl*> forceImpls;
     std::map<std::string, double> parameters;
     mutable std::vector<std::vector<int> > molecules;
-    bool hasInitializedForces, hasSetPositions, integratorIsDeleted;
+    bool hasInitializedForces, hasSetPositions, integratorIsDeleted, hasMinimizeKernel;
     int lastForceGroups;
     Platform* platform;
-    Kernel initializeForcesKernel, updateStateDataKernel, applyConstraintsKernel, virtualSitesKernel;
+    Kernel initializeForcesKernel, updateStateDataKernel, applyConstraintsKernel, virtualSitesKernel, minimizeKernel;
     void* platformData;
 };
 

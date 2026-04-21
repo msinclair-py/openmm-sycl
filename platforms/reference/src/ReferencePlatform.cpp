@@ -4,7 +4,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2025 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -44,6 +44,7 @@ ReferencePlatform::ReferencePlatform() {
     registerKernelFactory(UpdateStateDataKernel::Name(), factory);
     registerKernelFactory(ApplyConstraintsKernel::Name(), factory);
     registerKernelFactory(VirtualSitesKernel::Name(), factory);
+    registerKernelFactory(MinimizeKernel::Name(), factory);
     registerKernelFactory(CalcHarmonicBondForceKernel::Name(), factory);
     registerKernelFactory(CalcCustomBondForceKernel::Name(), factory);
     registerKernelFactory(CalcHarmonicAngleForceKernel::Name(), factory);
@@ -65,10 +66,12 @@ ReferencePlatform::ReferencePlatform() {
     registerKernelFactory(CalcCustomCVForceKernel::Name(), factory);
     registerKernelFactory(CalcATMForceKernel::Name(), factory);
     registerKernelFactory(CalcOrientationRestraintForceKernel::Name(), factory);
+    registerKernelFactory(CalcPythonForceKernel::Name(), factory);
     registerKernelFactory(CalcRGForceKernel::Name(), factory);
     registerKernelFactory(CalcRMSDForceKernel::Name(), factory);
     registerKernelFactory(CalcCustomManyParticleForceKernel::Name(), factory);
     registerKernelFactory(CalcGayBerneForceKernel::Name(), factory);
+    registerKernelFactory(CalcLCPOForceKernel::Name(), factory);
     registerKernelFactory(IntegrateVerletStepKernel::Name(), factory);
     registerKernelFactory(IntegrateNoseHooverStepKernel::Name(), factory);
     registerKernelFactory(IntegrateLangevinMiddleStepKernel::Name(), factory);

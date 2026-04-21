@@ -115,7 +115,8 @@ extern "C" __global__ void findBlockBounds(int numAtoms, real4 periodicBoxSize, 
 
         // Record the range of sizes.
         real totalSize = blockSize.x+blockSize.y+blockSize.z;
-        atomicMin(&blockSizeRange->x, totalSize);
+        if (totalSize > 0)
+            atomicMin(&blockSizeRange->x, totalSize);
         atomicMax(&blockSizeRange->y, totalSize);
     }
     if (blockIdx.x == 0 && threadIdx.x == 0)
@@ -315,6 +316,13 @@ extern "C" __global__ __launch_bounds__(GROUP_SIZE) void findBlocksWithInteracti
     if (rebuildNeighborList[0] == 0)
         return; // The neighbor list doesn't need to be rebuilt.
 
+    // Starting from ROCm 7 warpSize is no longer constexpr. Redefine as a local value for using it
+    // in sizes of __shared__ arrays:
+#if defined(AMD_RDNA)
+    constexpr int warpSize = 32;
+#else
+    constexpr int warpSize = 64;
+#endif
     constexpr int tilesPerWarp = warpSize/TILE_SIZE;
     constexpr int warpsPerBlock = GROUP_SIZE/warpSize;
     const int indexInWarp = threadIdx.x%warpSize;

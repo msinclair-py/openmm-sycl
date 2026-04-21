@@ -4,7 +4,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2009-2025 Stanford University and the Authors.      *
+ * Portions copyright (c) 2009-2026 Stanford University and the Authors.      *
  * Portions copyright (c) 2020-2023 Advanced Micro Devices, Inc.              *
  * Authors: Peter Eastman, Nicholas Curtis                                    *
  * Contributors:                                                              *
@@ -182,6 +182,17 @@ HipContext::HipContext(const System& system, int deviceIndex, bool useBlockingSy
         this->supportsHardwareFloatGlobalAtomicAdd = true;
     }
 
+    hostMallocFlags = hipHostMallocDefault;
+#if !defined(WIN32)
+    // hipHostMallocNumaUser may not be allowed in some conditions, for example, if docker container 
+    // is created without --security-opt seccomp=unconfined or --cap-add=SYS_NICE
+    int* tmpHostBuffer;
+    if(hipHostMalloc(&tmpHostBuffer, sizeof(*tmpHostBuffer), hipHostMallocNumaUser) == hipSuccess) {
+        CHECK_RESULT(hipHostFree(tmpHostBuffer));
+        hostMallocFlags = hipHostMallocNumaUser;
+    }
+#endif
+
     contextIsValid = true;
     ContextSelector selector(*this);
     if (contextIndex > 0 && originalContext == NULL) {
@@ -283,6 +294,7 @@ HipContext::HipContext(const System& system, int deviceIndex, bool useBlockingSy
     compilationDefines["ERF"] = useDoublePrecision ? "erf" : "erff";
     compilationDefines["ERFC"] = useDoublePrecision ? "erfc" : "erfcf";
     compilationDefines["FMA"] = useDoublePrecision ? "fma" : "fmaf";
+    compilationDefines["FABS"] = useDoublePrecision ? "fabs" : "fabsf";
 
     // Set defines for applying periodic boundary conditions.
 
@@ -911,9 +923,5 @@ unsigned int HipContext::getEventFlags() {
 }
 
 unsigned int HipContext::getHostMallocFlags() {
-#ifdef WIN32
-    return hipHostMallocDefault;
-#else
-    return hipHostMallocNumaUser;
-#endif
+    return hostMallocFlags;
 }

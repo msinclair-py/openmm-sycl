@@ -4,7 +4,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2025 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -73,6 +73,7 @@ CudaPlatform::CudaPlatform() {
     registerKernelFactory(UpdateStateDataKernel::Name(), factory);
     registerKernelFactory(ApplyConstraintsKernel::Name(), factory);
     registerKernelFactory(VirtualSitesKernel::Name(), factory);
+    registerKernelFactory(MinimizeKernel::Name(), factory);
     registerKernelFactory(CalcHarmonicBondForceKernel::Name(), factory);
     registerKernelFactory(CalcCustomBondForceKernel::Name(), factory);
     registerKernelFactory(CalcHarmonicAngleForceKernel::Name(), factory);
@@ -94,10 +95,12 @@ CudaPlatform::CudaPlatform() {
     registerKernelFactory(CalcCustomCVForceKernel::Name(), factory);
     registerKernelFactory(CalcATMForceKernel::Name(), factory);
     registerKernelFactory(CalcOrientationRestraintForceKernel::Name(), factory);
+    registerKernelFactory(CalcPythonForceKernel::Name(), factory);
     registerKernelFactory(CalcRGForceKernel::Name(), factory);
     registerKernelFactory(CalcRMSDForceKernel::Name(), factory);
     registerKernelFactory(CalcCustomManyParticleForceKernel::Name(), factory);
     registerKernelFactory(CalcGayBerneForceKernel::Name(), factory);
+    registerKernelFactory(CalcLCPOForceKernel::Name(), factory);
     registerKernelFactory(IntegrateVerletStepKernel::Name(), factory);
     registerKernelFactory(IntegrateNoseHooverStepKernel::Name(), factory);
     registerKernelFactory(IntegrateLangevinMiddleStepKernel::Name(), factory);
@@ -161,6 +164,48 @@ const string& CudaPlatform::getPropertyValue(const Context& context, const strin
 void CudaPlatform::setPropertyValue(Context& context, const string& property, const string& value) const {
 }
 
+vector<map<string, string> > CudaPlatform::getDevices(const map<string, string>& filters) const {
+    try {
+        CudaContext::ensureCudaInitialized();
+    }
+    catch (...) {
+        // CUDA couldn't be initialized, so report no devices.
+
+        return {};
+    }
+
+    // Check for properties that might act as filters.
+
+    int deviceIndex = -1;
+    if (filters.find(CudaDeviceIndex()) != filters.end())
+        stringstream(filters.at(CudaDeviceIndex())) >> deviceIndex;
+    string deviceName = (filters.find(CudaDeviceName()) == filters.end() ? "" : filters.at(CudaDeviceName()));
+
+    // Loop over devices.
+
+    vector<map<string, string> > results;
+    int numDevices;
+    if (cuDeviceGetCount(&numDevices) != CUDA_SUCCESS)
+        numDevices = 0;
+    for (int i = 0; i < numDevices; i++) {
+        if (deviceIndex != -1 && deviceIndex != i)
+            continue;
+        char name[1000];
+        CUdevice device;
+        CHECK_RESULT(cuDeviceGet(&device, i), "Error querying device");
+        CHECK_RESULT(cuDeviceGetName(name, 1000, device), "Error querying device name");
+        stringstream deviceNameStr;
+        deviceNameStr << name;
+        if (deviceName.size() > 0 && deviceName != deviceNameStr.str())
+            continue;
+        stringstream deviceIndexStr;
+        deviceIndexStr << i;
+        map<string, string> properties = {{CudaDeviceIndex(), deviceIndexStr.str()},
+                                          {CudaDeviceName(), deviceNameStr.str()}};
+        results.push_back(properties);
+    }
+    return results;
+}
 void CudaPlatform::contextCreated(ContextImpl& context, const map<string, string>& properties) const {
     const string& devicePropValue = (properties.find(CudaDeviceIndex()) == properties.end() ?
             getPropertyDefaultValue(CudaDeviceIndex()) : properties.find(CudaDeviceIndex())->second);

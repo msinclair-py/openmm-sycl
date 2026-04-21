@@ -7,7 +7,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2025 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -80,9 +80,12 @@ public:
     /**
      * Get the positions of all particles.
      *
+     * @param context    the context in which to execute this kernel
      * @param positions  on exit, this contains the particle positions
+     * @param allowPeriodic  if true, the returned positions might be translated into a
+     *                       different periodic box to keep them closer to the origin
      */
-    void getPositions(ContextImpl& context, std::vector<Vec3>& positions);
+    void getPositions(ContextImpl& context, std::vector<Vec3>& positions, bool allowPeriodic=false);
     /**
      * Set the positions of all particles.
      *
@@ -855,6 +858,53 @@ private:
 };
 
 /**
+ * This kernel is invoked by LCPOForce to calculate the forces acting on the system.
+ */
+class CommonCalcLCPOForceKernel : public CalcLCPOForceKernel {
+public:
+    CommonCalcLCPOForceKernel(std::string name, const Platform& platform, ComputeContext& cc) : CalcLCPOForceKernel(name, platform),
+            cc(cc), hasInitializedKernel(false) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param system     the System this kernel will be applied to
+     * @param force      the LCPOForce this kernel will be used for
+     */
+    void initialize(const System& system, const LCPOForce& force);
+    /**
+     * Execute the kernel to calculate the forces and/or energy.
+     *
+     * @param context        the context in which to execute this kernel
+     * @param includeForces  true if forces should be calculated
+     * @param includeEnergy  true if the energy should be calculated
+     * @return the potential energy due to the force
+     */
+    double execute(ContextImpl& context, bool includeForces, bool includeEnergy);
+    /**
+     * Copy changed parameters over to a context.
+     *
+     * @param context        the context to copy parameters to
+     * @param force          the LCPOForce to copy the parameters from
+     */
+    void copyParametersToContext(ContextImpl& context, const LCPOForce& force);
+private:
+    class ForceInfo;
+    ComputeContext& cc;
+    ForceInfo* info;
+    bool hasInitializedKernel, usePeriodic, doInteraction;
+    int numActiveParticles, numBlocks, maxNeighborPairs, paddedNumActiveParticles;
+    int maxThreadBlockSize, numForceThreadBlocks, forceThreadBlockSize, findNeighborsThreadBlockSize;
+    double oneBodyEnergy, cutoffSquared;
+    ComputeArray activeParticles, parameters;
+    ComputeArray condensedPos, blockCenter, blockBoundingBox;
+    ComputeArray numNeighborPairs, numNeighborsForAtom, neighborStartIndex, neighborPairs, neighbors, neighborData;
+    ComputeKernel condensePosKernel, findBlockBoundsKernel, findNeighborsKernel, computeNeighborStartIndicesKernel, copyPairsToNeighborListKernel, computeInteractionKernel;
+    ComputeEvent downloadStartEvent, downloadFinishEvent;
+    ComputeQueue downloadQueue;
+};
+
+/**
  * This kernel is invoked by VerletIntegrator to take one time step.
  */
 class CommonIntegrateVerletStepKernel : public IntegrateVerletStepKernel {
@@ -1419,10 +1469,10 @@ public:
     /**
      * Initialize the kernel.
      *
-     * @param system     the System this kernel will be applied to
+     * @param context    the ContextImpl this kernel will be applied to
      * @param force      the CustomCPPForceImpl this kernel will be used for
      */
-    void initialize(const System& system, CustomCPPForceImpl& force);
+    void initialize(const ContextImpl& context, CustomCPPForceImpl& force);
     /**
      * Execute the kernel to calculate the forces and/or energy.
      *
@@ -1457,6 +1507,63 @@ private:
     std::vector<float> floatForces;
     int forceGroupFlag;
     double energy;
+    bool useWorkerThread;
+};
+
+/**
+ * This kernel is invoked by PythonForce to calculate the forces acting on the system and the energy of the system.
+ */
+class CommonCalcPythonForceKernel : public CalcPythonForceKernel {
+public:
+    CommonCalcPythonForceKernel(std::string name, const Platform& platform, OpenMM::ContextImpl& contextImpl, ComputeContext& cc) :
+            CalcPythonForceKernel(name, platform), contextImpl(contextImpl), cc(cc) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param context    the ContextImpl this kernel will be applied to
+     * @param force      the PythonForce this kernel will be used for
+     */
+    void initialize(const ContextImpl& context, const PythonForce& force);
+    /**
+     * Execute the kernel to calculate the forces and/or energy.
+     *
+     * @param context        the context in which to execute this kernel
+     * @param includeForces  true if forces should be calculated
+     * @param includeEnergy  true if the energy should be calculated
+     * @return the potential energy due to the force
+     */
+    double execute(ContextImpl& context, bool includeForces, bool includeEnergy);
+    /**
+     * The is called by the pre-computation to start the calculation running.
+     */
+    void beginComputation(bool includeForces, bool includeEnergy, int groups);
+    /**
+     * This is called by the worker thread to do the computation.
+     */
+    void executeOnWorkerThread(bool includeForces);
+    /**
+     * This is called by the post-computation to add the forces to the main array.
+     */
+    double addForces(bool includeForces, bool includeEnergy, int groups);
+private:
+    class ExecuteTask;
+    class StartCalculationPreComputation;
+    class AddForcesPostComputation;
+    class ReorderListener;
+    void getPositions();
+    void sortParticles();
+    OpenMM::ContextImpl& contextImpl;
+    ComputeContext& cc;
+    const PythonForceComputation* computation;
+    ComputeArray positionsArray, forcesArray, particlesArray, reorderedParticles;
+    ComputeKernel copyPositionsKernel, addForcesKernel;
+    std::vector<Vec3> positionsVec;
+    std::vector<double> forcesVec;
+    std::vector<int> particles;
+    int numParticles, forceGroupFlag;
+    double energy;
+    bool usePeriodic, useWorkerThread;
 };
 
 } // namespace OpenMM

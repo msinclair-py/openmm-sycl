@@ -4,7 +4,7 @@
  * This is part of the OpenMM molecular simulation toolkit.                   *
  * See https://openmm.org/development.                                        *
  *                                                                            *
- * Portions copyright (c) 2008-2024 Stanford University and the Authors.      *
+ * Portions copyright (c) 2008-2026 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -44,6 +44,8 @@ KernelImpl* ReferenceKernelFactory::createKernelImpl(std::string name, const Pla
         return new ReferenceApplyConstraintsKernel(name, platform, data);
     if (name == VirtualSitesKernel::Name())
         return new ReferenceVirtualSitesKernel(name, platform);
+    if (name == MinimizeKernel::Name())
+        return new ReferenceMinimizeKernel(name, platform);
     if (name == CalcNonbondedForceKernel::Name())
         return new ReferenceCalcNonbondedForceKernel(name, platform);
     if (name == CalcConstantPotentialForceKernel::Name())
@@ -86,6 +88,8 @@ KernelImpl* ReferenceKernelFactory::createKernelImpl(std::string name, const Pla
         return new ReferenceCalcCustomCPPForceKernel(name, platform);
     if (name == CalcOrientationRestraintForceKernel::Name())
         return new ReferenceCalcOrientationRestraintForceKernel(name, platform);
+    if (name == CalcPythonForceKernel::Name())
+        return new ReferenceCalcPythonForceKernel(name, platform);
     if (name == CalcRGForceKernel::Name())
         return new ReferenceCalcRGForceKernel(name, platform);
     if (name == CalcRMSDForceKernel::Name())
@@ -94,6 +98,8 @@ KernelImpl* ReferenceKernelFactory::createKernelImpl(std::string name, const Pla
         return new ReferenceCalcCustomManyParticleForceKernel(name, platform);
     if (name == CalcGayBerneForceKernel::Name())
         return new ReferenceCalcGayBerneForceKernel(name, platform);
+    if (name == CalcLCPOForceKernel::Name())
+        return new ReferenceCalcLCPOForceKernel(name, platform);
     if (name == IntegrateVerletStepKernel::Name())
         return new ReferenceIntegrateVerletStepKernel(name, platform, data);
     if (name == IntegrateNoseHooverStepKernel::Name())
