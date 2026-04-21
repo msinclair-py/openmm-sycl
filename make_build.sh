@@ -1,5 +1,5 @@
-module load oneapi/eng-compiler/2024.07.30.002
-module load cmake/3.27.9
+#module load oneapi/eng-compiler/2024.07.30.002
+module load cmake/3.31.11
 module load swig
 module load doxygen
  
@@ -13,8 +13,8 @@ export OPENMM_CXX=$(which icpx)
 #(IF YOU CAN HAVE A MORE ROBUST METHOD FOR HEADERS/LIBRARIES PATHS, PLEASE LEAVE A COMMENT BELOW)
 export OPENCL_BASE=$(command dirname -- "${OPENMM_CC}")
 export OPENCL_BASE=$(cd "${OPENCL_BASE}/../../../" && command pwd -P)
-export OPENCL_INC="${OPENCL_BASE}/compiler/eng-20240629/include/sycl"
-export OPENCL_LIB="${OPENCL_BASE}/compiler/eng-20240629/lib/libOpenCL.so"
+export OPENCL_INC="${OPENCL_BASE}/compiler/2025.3/include/sycl"
+export OPENCL_LIB="${OPENCL_BASE}/compiler/2025.3/lib/libOpenCL.so"
  
 mkdir build
  

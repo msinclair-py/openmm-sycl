@@ -1,7 +1,7 @@
 export OPENMM_CC=$(which icx)
 export OPENMM_CXX=$(which icpx)
  
-export INSPATH="${PWD}/install"
+export INSPATH="${PWD}/build/install"
  
 export LD_LIBRARY_PATH="$INSPATH/lib":"$INSPATH/lib/plugins":${LD_LIBRARY_PATH}
 export CPATH="$INSPATH/include":${CPATH}
@@ -10,7 +10,7 @@ export OPENMM_INCLUDE_PATH="$INSPATH/include"
 export OPENMM_LIB_PATH="$INSPATH/lib"
 export OPENMM_PLUGIN_DIR="$INSPATH/lib/plugins"
  
-cd python
+cd wrappers/python
  
 CC=icx CXX=icpx python -m pip install .
  
